@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Chi Tiêu Cá Nhân</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for transaction list */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- Header Navigation -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-sky-500 to-indigo-600 p-2.5 rounded-xl text-white shadow-md">
+                    <i class="fa-solid fa-wallet text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg sm:text-xl text-slate-800 leading-tight">Sổ Thu Chi</h1>
+                    <p class="text-xs text-slate-500">Quản lý tài chính cá nhân smart & easy</p>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="flex items-center gap-2">
+                <button onclick="exportData()" title="Xuất dữ liệu dự phòng" class="p-2 text-slate-600 hover:text-sky-600 hover:bg-slate-100 rounded-lg transition text-sm flex items-center gap-1.5 border border-slate-200">
+                    <i class="fa-solid fa-download"></i>
+                    <span class="hidden md:inline font-medium">Xuất Data</span>
+                </button>
+                <label for="importFile" title="Nhập dữ liệu dự phòng" class="p-2 text-slate-600 hover:text-sky-600 hover:bg-slate-100 rounded-lg transition text-sm flex items-center gap-1.5 border border-slate-200 cursor-pointer">
+                    <i class="fa-solid fa-upload"></i>
+                    <span class="hidden md:inline font-medium">Nhập Data</span>
+                </label>
+                <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow">
+        
+        <!-- Summary Cards Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <!-- Balance Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Số Dư Hiện Tại</span>
+                    <div class="p-2 bg-sky-50 text-sky-600 rounded-lg">
+                        <i class="fa-solid fa-scale-balanced text-lg"></i>
+                    </div>
+                </div>
+                <div id="totalBalance" class="text-2xl sm:text-3xl font-extrabold text-slate-800">0 ₫</div>
+                <p class="text-xs text-slate-400 mt-2">Tổng tài sản thực tế khả dụng</p>
+            </div>
+
+            <!-- Income Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold text-emerald-600 uppercase tracking-wider">Tổng Thu Nhập</span>
+                    <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                        <i class="fa-solid fa-arrow-trend-up text-lg"></i>
+                    </div>
+                </div>
+                <div id="totalIncome" class="text-2xl sm:text-3xl font-extrabold text-emerald-600">+0 ₫</div>
+                <p class="text-xs text-slate-400 mt-2">Tổng số tiền đã nạp vào</p>
+            </div>
+
+            <!-- Expense Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold text-rose-600 uppercase tracking-wider">Tổng Chi Tiêu</span>
+                    <div class="p-2 bg-rose-50 text-rose-600 rounded-lg">
+                        <i class="fa-solid fa-arrow-trend-down text-lg"></i>
+                    </div>
+                </div>
+                <div id="totalExpense" class="text-2xl sm:text-3xl font-extrabold text-rose-600">-0 ₫</div>
+                <p class="text-xs text-slate-400 mt-2">Tổng số tiền đã xuất ra</p>
+            </div>
+        </section>
+
+        <!-- Dynamic Grid Layout: Form & Chart + Transaction List -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Left Column: Add Transaction & Chart (5 Cols) -->
+            <div class="lg:col-span-5 space-y-8">
+                
+                <!-- Transaction Form Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle text-sky-600"></i> Thêm Giao Dịch Mới
+                    </h2>
+
+                    <form id="expenseForm" onsubmit="addTransaction(event)" class="space-y-4">
+                        <!-- Type Selector (Thu/Chi) -->
+                        <div class="grid grid-cols-2 gap-3 p-1 bg-slate-100 rounded-xl">
+                            <button type="button" id="btnExpense" onclick="setType('expense')" 
+                                class="py-2.5 rounded-lg text-sm font-semibold transition text-rose-600 bg-white shadow-sm">
+                                <i class="fa-solid fa-minus-circle mr-1"></i> Khoản Chi
+                            </button>
+                            <button type="button" id="btnIncome" onclick="setType('income')" 
+                                class="py-2.5 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-emerald-600">
+                                <i class="fa-solid fa-plus-circle mr-1"></i> Khoản Thu
+                            </button>
+                        </div>
+                        <input type="hidden" id="transType" value="expense">
+
+                        <!-- Amount Input -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">SỐ TIỀN (VNĐ) <span class="text-rose-500">*</span></label>
+                            <div class="relative">
+                                <input type="number" id="amount" required min="1" step="any" placeholder="VD: 50000"
+                                    class="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium text-slate-800 transition">
+                                <span class="absolute right-3 top-2.5 text-slate-400 font-semibold text-sm">₫</span>
+                            </div>
+                        </div>
+
+                        <!-- Category Selector -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">DANH MỤC <span class="text-rose-500">*</span></label>
+                            <select id="category" required class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium text-slate-800 transition">
+                                <!-- Options will be dynamically populated -->
+                            </select>
+                        </div>
+
+                        <!-- Date Input -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">NGÀY GIAO DỊCH <span class="text-rose-500">*</span></label>
+                            <input type="date" id="transDate" required
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium text-slate-800 transition">
+                        </div>
+
+                        <!-- Note Input -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">GHI CHÚ / BỔ SUNG</label>
+                            <input type="text" id="note" placeholder="VD: Ăn trưa cùng đồng nghiệp..."
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-slate-800 transition">
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" 
+                            class="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check"></i> Lưu Giao Dịch
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Chart Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-sky-600"></i> Phân Tích Chi Tiêu
+                    </h2>
+                    <div class="relative w-full h-64 flex items-center justify-center">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Transaction History & Filters (7 Cols) -->
+            <div class="lg:col-span-7">
+                <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm h-full flex flex-col">
+                    
+                    <!-- Title & Header -->
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-list-ul text-sky-600"></i> Lịch Sử Giao Dịch
+                        </h2>
+                        <span id="transactionCount" class="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1 rounded-full w-fit">
+                            0 giao dịch
+                        </span>
+                    </div>
+
+                    <!-- Filter Controls -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <!-- Search Box -->
+                        <div>
+                            <input type="text" id="filterSearch" placeholder="Tìm ghi chú..." oninput="renderTransactions()"
+                                class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <!-- Filter Type -->
+                        <div>
+                            <select id="filterType" onchange="renderTransactions()" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="all">Tất cả loại (Thu & Chi)</option>
+                                <option value="expense">Chỉ Khoản Chi</option>
+                                <option value="income">Chỉ Khoản Thu</option>
+                            </select>
+                        </div>
+                        <!-- Filter Category -->
+                        <div>
+                            <select id="filterCategory" onchange="renderTransactions()" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="all">Tất cả danh mục</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- List Container -->
+                    <div class="flex-grow overflow-y-auto max-h-[520px] custom-scrollbar pr-1">
+                        <div id="transactionList" class="space-y-3">
+                            <!-- Dynamically Generated Items -->
+                        </div>
+                        
+                        <!-- Empty State -->
+                        <div id="emptyState" class="hidden py-12 text-center">
+                            <div class="w-16 h-16 mx-auto mb-3 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center text-2xl">
+                                <i class="fa-solid fa-receipt"></i>
+                            </div>
+                            <p class="text-slate-500 font-medium">Chưa có giao dịch nào!</p>
+                            <p class="text-xs text-slate-400 mt-1">Hãy thêm thu nhập hoặc chi tiêu đầu tiên của bạn.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+            Ứng dụng Quản lý Chi tiêu Cá nhân &bull; Lưu trữ an toàn tại LocalStorage trình duyệt
+        </div>
+    </footer>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-xl transition-all duration-300 transform translate-y-20 opacity-0 flex items-center gap-3 z-50">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMessage" class="text-sm font-medium">Thông báo</span>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // Data Structures & Categories Config
+        const CATEGORIES = {
+            expense: [
+                { id: 'food', name: 'Ăn uống', icon: 'fa-utensils', color: '#f43f5e' },
+                { id: 'shopping', name: 'Mua sắm', icon: 'fa-bag-shopping', color: '#ec4899' },
+                { id: 'transport', name: 'Di chuyển', icon: 'fa-car', color: '#3b82f6' },
+                { id: 'bills', name: 'Hóa đơn & Tiện ích', icon: 'fa-file-invoice-dollar', color: '#eab308' },
+                { id: 'entertainment', name: 'Giải trí', icon: 'fa-gamepad', color: '#a855f7' },
+                { id: 'health', name: 'Sức khỏe', icon: 'fa-heart-pulse', color: '#10b981' },
+                { id: 'education', name: 'Giáo dục', icon: 'fa-graduation-cap', color: '#6366f1' },
+                { id: 'other_exp', name: 'Khác (Chi)', icon: 'fa-ellipsis', color: '#64748b' }
+            ],
+            income: [
+                { id: 'salary', name: 'Lương', icon: 'fa-money-bill-wave', color: '#10b981' },
+                { id: 'bonus', name: 'Thưởng', icon: 'fa-gift', color: '#f59e0b' },
+                { id: 'investment', name: 'Đầu tư', icon: 'fa-chart-line', color: '#06b6d4' },
+                { id: 'freelance', name: 'Làm thêm / Freelance', icon: 'fa-laptop-code', color: '#8b5cf6' },
+                { id: 'other_inc', name: 'Khác (Thu)', icon: 'fa-wallet', color: '#64748b' }
+            ]
+        };
+
+        // Application State
+        let transactions = JSON.parse(localStorage.getItem('app_expense_transactions')) || [];
+        let chartInstance = null;
+
+        // Initialize Application
+        window.onload = function() {
+            // Set default date to today
+            document.getElementById('transDate').value = new Date().toISOString().split('T')[0];
+            
+            updateCategorySelect();
+            updateFilterCategorySelect();
+            renderTransactions();
+            updateSummary();
+            renderChart();
+        };
+
+        // Format Currency Helper
+        function formatVND(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+        }
+
+        // Switch Transaction Type (Thu/Chi)
+        function setType(type) {
+            document.getElementById('transType').value = type;
+            const btnExpense = document.getElementById('btnExpense');
+            const btnIncome = document.getElementById('btnIncome');
+
+            if (type === 'expense') {
+                btnExpense.className = "py-2.5 rounded-lg text-sm font-semibold transition text-rose-600 bg-white shadow-sm";
+                btnIncome.className = "py-2.5 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-emerald-600";
+            } else {
+                btnIncome.className = "py-2.5 rounded-lg text-sm font-semibold transition text-emerald-600 bg-white shadow-sm";
+                btnExpense.className = "py-2.5 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-rose-600";
+            }
+
+            updateCategorySelect();
+        }
+
+        // Populate Category Dropdown based on type
+        function updateCategorySelect() {
+            const type = document.getElementById('transType').value;
+            const select = document.getElementById('category');
+            select.innerHTML = '';
+
+            CATEGORIES[type].forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                select.appendChild(opt);
+            });
+        }
+
+        // Populate Filter Categories
+        function updateFilterCategorySelect() {
+            const select = document.getElementById('filterCategory');
+            select.innerHTML = '<option value="all">Tất cả danh mục</option>';
+
+            const allCats = [...CATEGORIES.expense, ...CATEGORIES.income];
+            allCats.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                select.appendChild(opt);
+            });
+        }
+
+        // Add Transaction Handler
+        function addTransaction(e) {
+            e.preventDefault();
+
+            const type = document.getElementById('transType').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const categoryId = document.getElementById('category').value;
+            const date = document.getElementById('transDate').value;
+            const note = document.getElementById('note').value.trim();
+
+            if (!amount || amount <= 0) {
+                showToast('Vui lòng nhập số tiền hợp lệ!', 'error');
+                return;
+            }
+
+            const newTransaction = {
+                id: Date.now().toString(),
+                type,
+                amount,
+                categoryId,
+                date,
+                note
+            };
+
+            transactions.unshift(newTransaction);
+            saveData();
+
+            // Reset Form fields
+            document.getElementById('amount').value = '';
+            document.getElementById('note').value = '';
+
+            renderTransactions();
+            updateSummary();
+            renderChart();
+            showToast('Đã lưu giao dịch thành công!');
+        }
+
+        // Delete Transaction Handler
+        function deleteTransaction(id) {
+            if (confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) {
+                transactions = transactions.filter(item => item.id !== id);
+                saveData();
+                renderTransactions();
+                updateSummary();
+                renderChart();
+                showToast('Đã xóa giao dịch thành công!', 'info');
+            }
+        }
+
+        // Save data to LocalStorage
+        function saveData() {
+            localStorage.setItem('app_expense_transactions', JSON.stringify(transactions));
+        }
+
+        // Calculate & Update Total Summary Cards
+        function updateSummary() {
+            const income = transactions
+                .filter(t => t.type === 'income')
+                .reduce((acc, t) => acc + t.amount, 0);
+
+            const expense = transactions
+                .filter(t => t.type === 'expense')
+                .reduce((acc, t) => acc + t.amount, 0);
+
+            const balance = income - expense;
+
+            document.getElementById('totalBalance').textContent = formatVND(balance);
+            document.getElementById('totalIncome').textContent = `+${formatVND(income)}`;
+            document.getElementById('totalExpense').textContent = `-${formatVND(expense)}`;
+        }
+
+        // Helper to get Category Metadata
+        function getCategoryMeta(catId) {
+            const all = [...CATEGORIES.expense, ...CATEGORIES.income];
+            return all.find(c => c.id === catId) || { name: 'Khác', icon: 'fa-circle-question', color: '#64748b' };
+        }
+
+        // Render Filtered Transactions List
+        function renderTransactions() {
+            const container = document.getElementById('transactionList');
+            const emptyState = document.getElementById('emptyState');
+            
+            const searchVal = document.getElementById('filterSearch').value.toLowerCase();
+            const typeVal = document.getElementById('filterType').value;
+            const catVal = document.getElementById('filterCategory').value;
+
+            // Filtering logic
+            const filtered = transactions.filter(t => {
+                const matchSearch = t.note.toLowerCase().includes(searchVal);
+                const matchType = (typeVal === 'all') || (t.type === typeVal);
+                const matchCat = (catVal === 'all') || (t.categoryId === catVal);
+                return matchSearch && matchType && matchCat;
+            });
+
+            document.getElementById('transactionCount').textContent = `${filtered.length} giao dịch`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.innerHTML = filtered.map(t => {
+                const cat = getCategoryMeta(t.categoryId);
+                const isIncome = t.type === 'income';
+                const formattedDate = new Date(t.date).toLocaleDateString('vi-VN');
+
+                return `
+                    <div class="p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl transition flex items-center justify-between group border border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base shadow-xs" style="background-color: ${cat.color}">
+                                <i class="fa-solid ${cat.icon}"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800 text-sm">${cat.name}</div>
+                                <div class="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                                    <span><i class="fa-regular fa-calendar text-[10px] mr-1"></i>${formattedDate}</span>
+                                    ${t.note ? `<span class="truncate max-w-[140px] sm:max-w-[200px]" title="${t.note}">&bull; ${t.note}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-sm sm:text-base ${isIncome ? 'text-emerald-600' : 'text-slate-800'}">
+                                ${isIncome ? '+' : '-'}${formatVND(t.amount)}
+                            </span>
+                            <button onclick="deleteTransaction('${t.id}')" title="Xóa giao dịch" 
+                                class="text-slate-400 hover:text-rose-500 p-1.5 rounded-lg opacity-80 sm:opacity-0 group-hover:opacity-100 transition">
+                                <i class="fa-solid fa-trash-can text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render Expense Distribution Chart (Chart.js)
+        function renderChart() {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            
+            // Calculate expense sums by category
+            const expenses = transactions.filter(t => t.type === 'expense');
+            const categoryTotals = {};
+
+            expenses.forEach(t => {
+                categoryTotals[t.categoryId] = (categoryTotals[t.categoryId] || 0) + t.amount;
+            });
+
+            const labels = [];
+            const data = [];
+            const colors = [];
+
+            Object.keys(categoryTotals).forEach(catId => {
+                const cat = getCategoryMeta(catId);
+                labels.push(cat.name);
+                data.push(categoryTotals[catId]);
+                colors.push(cat.color);
+            });
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            if (data.length === 0) {
+                // Empty chart state
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Chưa có dữ liệu chi tiêu'],
+                        datasets: [{
+                            data: [1],
+                            backgroundColor: ['#e2e8f0']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        }
+                    }
+                });
+                return;
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: 'Inter', size: 12 },
+                                padding: 12,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw || 0;
+                                    return ` ${context.label}: ${formatVND(val)}`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        // Toast Notification System
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.textContent = message;
+
+            if (type === 'error') {
+                toastIcon.className = 'fa-solid fa-circle-exclamation text-rose-400';
+            } else if (type === 'info') {
+                toastIcon.className = 'fa-solid fa-circle-info text-sky-400';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Export Data to JSON File
+        function exportData() {
+            if (transactions.length === 0) {
+                showToast('Không có dữ liệu để xuất!', 'error');
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `chi_tieu_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('Đã xuất file dữ liệu thành công!');
+        }
+
+        // Import Data from JSON File
+        function importData(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        transactions = importedData;
+                        saveData();
+                        renderTransactions();
+                        updateSummary();
+                        renderChart();
+                        showToast('Đã nhập dữ liệu thành công!');
+                    } else {
+                        showToast('File không đúng định dạng!', 'error');
+                    }
+                } catch (err) {
+                    showToast('Lỗi đọc file backup!', 'error');
+                }
+            };
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0]);
+            }
+        }
+    </script>
+</body>
+</html>
